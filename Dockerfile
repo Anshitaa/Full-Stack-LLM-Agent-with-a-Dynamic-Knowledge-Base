@@ -1,37 +1,58 @@
-# Multi-stage build for production
-FROM node:18-alpine AS frontend-build
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm install --only=production
-COPY frontend/ ./
-RUN npm run build
+# Simple production Dockerfile
+FROM python:3.9-slim
 
-FROM python:3.9-slim AS backend-build
+# Set working directory
 WORKDIR /app
-RUN apt-get update && apt-get install -y gcc g++ curl && rm -rf /var/lib/apt/lists/*
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    nginx \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
+
+# Copy backend code
 COPY backend/ ./
 RUN mkdir -p /app/chroma_db
 
-FROM nginx:alpine AS production
-# Install Python and dependencies for backend
-RUN apk add --no-cache python3 py3-pip gcc g++ musl-dev libffi-dev
-COPY --from=backend-build /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
-COPY --from=backend-build /usr/local/bin /usr/local/bin
-COPY --from=backend-build /app /app/backend
-COPY --from=frontend-build /app/build /usr/share/nginx/html
+# Install Node.js for frontend build
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs
+
+# Build frontend
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+# Copy built frontend to nginx directory
+RUN cp -r /app/frontend/build/* /var/www/html/
 
 # Copy nginx config
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY frontend/nginx-single.conf /etc/nginx/sites-available/default
+RUN rm -f /etc/nginx/sites-enabled/default && \
+    ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
 
 # Create startup script
-RUN echo '#!/bin/sh' > /start.sh && \
-    echo 'cd /app/backend' >> /start.sh && \
+WORKDIR /app
+RUN echo '#!/bin/bash' > /start.sh && \
     echo 'python -m uvicorn main:app --host 0.0.0.0 --port 8000 &' >> /start.sh && \
     echo 'nginx -g "daemon off;"' >> /start.sh && \
     chmod +x /start.sh
 
-EXPOSE 80
+# Expose ports
+EXPOSE 80 8000
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV CHROMA_PERSIST_DIRECTORY=/app/chroma_db
+
+# Run the application
 CMD ["/start.sh"]
