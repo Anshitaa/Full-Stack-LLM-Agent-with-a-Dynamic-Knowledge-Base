@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: full-stack-llm-agent
+    env: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CHROMA_PERSIST_DIRECTORY
+        value: /app/chroma_db
+    healthCheckPath: /health
