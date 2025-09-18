@@ -23,7 +23,14 @@ class RAGPipeline:
             self.openai_api_key = None
         
         # Initialize OpenAI client
-        self.openai_client = openai.OpenAI(api_key=self.openai_api_key) if self.openai_api_key else None
+        if self.openai_api_key:
+            try:
+                self.openai_client = openai.OpenAI(api_key=self.openai_api_key)
+            except Exception as e:
+                logger.error(f"Failed to initialize OpenAI client: {e}")
+                self.openai_client = None
+        else:
+            self.openai_client = None
         
         # Initialize embedding model
         self.embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
