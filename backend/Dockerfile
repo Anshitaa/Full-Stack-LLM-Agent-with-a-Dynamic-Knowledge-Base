@@ -14,7 +14,8 @@ COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
+    pip install --no-cache-dir torch==2.0.1 torchvision==0.15.2 --extra-index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
