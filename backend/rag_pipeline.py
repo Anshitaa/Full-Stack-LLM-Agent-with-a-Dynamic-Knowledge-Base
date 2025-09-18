@@ -211,6 +211,26 @@ For now, I can only show you the relevant context from uploaded documents."""
 
     async def _generate_response_stream(self, question: str, context: str) -> AsyncGenerator[Dict[str, Any], None]:
         """Stream response using OpenAI API"""
+        if not self.openai_api_key:
+            yield {
+                "type": "content",
+                "content": f"""I can see you asked: "{question}"
+
+However, I need to be configured with a valid OpenAI API key to provide intelligent responses.
+
+The context I found from the knowledge base is:
+{context}
+
+To enable full AI functionality, please:
+1. Get an OpenAI API key from https://platform.openai.com/api-keys
+2. Update the OPENAI_API_KEY in the environment configuration
+3. Restart the application
+
+For now, I can only show you the relevant context from uploaded documents."""
+            }
+            yield {"type": "done"}
+            return
+
         try:
             prompt = f"""You are a helpful AI assistant with access to a knowledge base. 
             Use the following context to answer the user's question. If the context doesn't contain 
